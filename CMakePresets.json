@@ -1,0 +1,26 @@
+{
+	"version": 8,
+	"configurePresets": [
+		{
+			"name": "Release",
+			"generator": "Ninja",
+			"binaryDir": "build${presetName}",
+			"cacheVariables": {
+				"CMAKE_BUILD_TYPE": "Release",
+				"CMAKE_TOOLCHAIN_FILE": "llvm-mingw.cmake",
+				"CMAKE_INSTALL_PREFIX": "${sourceDir}/install/${presetName}"
+			}
+		},
+		{
+			"name": "Release32",
+			"generator": "Ninja",
+			"binaryDir": "build${presetName}",
+			"cacheVariables": {
+				"CMAKE_BUILD_TYPE": "Release",
+				"CMAKE_SYSTEM_PROCESSOR": "i686",
+				"CMAKE_TOOLCHAIN_FILE": "llvm-mingw.cmake",
+				"CMAKE_INSTALL_PREFIX": "${sourceDir}/install/${presetName}"
+			}
+		}
+	]
+}
