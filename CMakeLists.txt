@@ -17,4 +17,4 @@ add_compile_options($<$<CONFIG:Debug>:-Og> -g -fno-exceptions -ffunction-section
 add_compile_options(-Wall -Wextra -Wno-missing-field-initializers -Wshadow -Wconversion)
 add_link_options(-Wl,--gc-sections,--icf=safe,--strip-all)
 add_executable(D3D11Triangle main.cpp)
-target_link_libraries(D3D11Triangle ddraw dxguid)
+target_link_libraries(D3D11Triangle d3d11 d3dcompiler user32)
