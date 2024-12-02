@@ -1,339 +1,373 @@
-#include <cstdio>
+#pragma comment(lib, "user32")
+#pragma comment(lib, "d3d11")
+#pragma comment(lib, "d3dcompiler")
+
+///////////////////////////////////////////////////////////////////////////////////////////////////
 
 #include <windows.h>
-#include <d3d.h>
+#include <d3d11_1.h>
+#include <d3dcompiler.h>
 
-static LPDIRECTDRAW7        lpDD = nullptr;
-static LPDIRECT3D7          lpD3D = nullptr;
-static LPDIRECT3DDEVICE7    lpD3DDevice = nullptr;
-static LPDIRECTDRAWSURFACE7 lpPrimary = nullptr;
-static LPDIRECTDRAWSURFACE7 lpBackBuffer = nullptr;
-static LPDIRECT3DVERTEXBUFFER7 lpVertexBuffer = nullptr;
-static LPDIRECTDRAWCLIPPER  lpClipper = nullptr;
-static HWND hWnd;
+///////////////////////////////////////////////////////////////////////////////////////////////////
 
-static bool fullscreen = false;
+#define TITLE "Minimal D3D11 pt2 by d7samurai"
 
-static const char* dderr2str(HRESULT err)
+///////////////////////////////////////////////////////////////////////////////////////////////////
+
+UINT TextureData[] = { 0xffffffff, 0xff7f7f7f, 0xff7f7f7f, 0xffffffff }; // 2x2 pixels
+
+float VertexData[] = // pos.x, pos.y, pos.z, nor.x, nor.y, nor.z, tex.u, tex.v, ...
 {
-    switch (err)
-    {
-    case DDERR_DDSCAPSCOMPLEXREQUIRED: return "DDERR_DDSCAPSCOMPLEXREQUIRED";
-    case DDERR_DEVICEDOESNTOWNSURFACE: return "DDERR_DEVICEDOESNTOWNSURFACE";
-    case DDERR_EXPIRED: return "DDERR_EXPIRED";
-    case DDERR_INVALIDSTREAM: return "DDERR_INVALIDSTREAM";
-    case DDERR_MOREDATA: return "DDERR_MOREDATA";
-    case DDERR_NEWMODE: return "DDERR_NEWMODE";
-    case DDERR_NODRIVERSUPPORT: return "DDERR_NODRIVERSUPPORT";
-    case DDERR_NOFOCUSWINDOW: return "DDERR_NOFOCUSWINDOW";
-    case DDERR_NOMONITORINFORMATION: return "DDERR_NOMONITORINFORMATION";
-    case DDERR_NONONLOCALVIDMEM: return "DDERR_NONONLOCALVIDMEM";
-    case DDERR_NOOPTIMIZEHW: return "DDERR_NOOPTIMIZEHW";
-    case DDERR_NOSTEREOHARDWARE: return "DDERR_NOSTEREOHARDWARE";
-    case DDERR_NOSURFACELEFT: return "DDERR_NOSURFACELEFT";
-    case DDERR_NOTLOADED: return "DDERR_NOTLOADED";
-    case DDERR_OVERLAPPINGRECTS: return "DDERR_OVERLAPPINGRECTS";
-    case DDERR_TESTFINISHED: return "DDERR_TESTFINISHED";
-    case DDERR_VIDEONOTACTIVE: return "DDERR_VIDEONOTACTIVE";
-    case DDERR_ALREADYINITIALIZED: return "DDERR_ALREADYINITIALIZED";
-    case DDERR_CANNOTATTACHSURFACE: return "DDERR_CANNOTATTACHSURFACE";
-    case DDERR_CANNOTDETACHSURFACE: return "DDERR_CANNOTDETACHSURFACE";
-    case DDERR_CURRENTLYNOTAVAIL: return "DDERR_CURRENTLYNOTAVAIL";
-    case DDERR_EXCEPTION: return "DDERR_EXCEPTION";
-    case DDERR_GENERIC: return "DDERR_GENERIC";
-    case DDERR_HEIGHTALIGN: return "DDERR_HEIGHTALIGN";
-    case DDERR_INCOMPATIBLEPRIMARY: return "DDERR_INCOMPATIBLEPRIMARY";
-    case DDERR_INVALIDCAPS: return "DDERR_INVALIDCAPS";
-    case DDERR_INVALIDCLIPLIST: return "DDERR_INVALIDCLIPLIST";
-    case DDERR_INVALIDMODE: return "DDERR_INVALIDMODE";
-    case DDERR_INVALIDOBJECT: return "DDERR_INVALIDOBJECT";
-    case DDERR_INVALIDPARAMS: return "DDERR_INVALIDPARAMS";
-    case DDERR_INVALIDPIXELFORMAT: return "DDERR_INVALIDPIXELFORMAT";
-    case DDERR_INVALIDRECT: return "DDERR_INVALIDRECT";
-    case DDERR_LOCKEDSURFACES: return "DDERR_LOCKEDSURFACES";
-    case DDERR_NO3D: return "DDERR_NO3D";
-    case DDERR_NOALPHAHW: return "DDERR_NOALPHAHW";
-    case DDERR_NOCLIPLIST: return "DDERR_NOCLIPLIST";
-    case DDERR_NOCOLORCONVHW: return "DDERR_NOCOLORCONVHW";
-    case DDERR_NOCOOPERATIVELEVELSET: return "DDERR_NOCOOPERATIVELEVELSET";
-    case DDERR_NOCOLORKEY: return "DDERR_NOCOLORKEY";
-    case DDERR_NOCOLORKEYHW: return "DDERR_NOCOLORKEYHW";
-    case DDERR_NODIRECTDRAWSUPPORT: return "DDERR_NODIRECTDRAWSUPPORT";
-    case DDERR_NOEXCLUSIVEMODE: return "DDERR_NOEXCLUSIVEMODE";
-    case DDERR_NOFLIPHW: return "DDERR_NOFLIPHW";
-    case DDERR_NOGDI: return "DDERR_NOGDI";
-    case DDERR_NOMIRRORHW: return "DDERR_NOMIRRORHW";
-    case DDERR_NOTFOUND: return "DDERR_NOTFOUND";
-    case DDERR_NOOVERLAYHW: return "DDERR_NOOVERLAYHW";
-    case DDERR_NORASTEROPHW: return "DDERR_NORASTEROPHW";
-    case DDERR_NOROTATIONHW: return "DDERR_NOROTATIONHW";
-    case DDERR_NOSTRETCHHW: return "DDERR_NOSTRETCHHW";
-    case DDERR_NOT4BITCOLOR: return "DDERR_NOT4BITCOLOR";
-    case DDERR_NOT4BITCOLORINDEX: return "DDERR_NOT4BITCOLORINDEX";
-    case DDERR_NOT8BITCOLOR: return "DDERR_NOT8BITCOLOR";
-    case DDERR_NOTEXTUREHW: return "DDERR_NOTEXTUREHW";
-    case DDERR_NOVSYNCHW: return "DDERR_NOVSYNCHW";
-    case DDERR_NOZBUFFERHW: return "DDERR_NOZBUFFERHW";
-    case DDERR_NOZOVERLAYHW: return "DDERR_NOZOVERLAYHW";
-    case DDERR_OUTOFCAPS: return "DDERR_OUTOFCAPS";
-    case DDERR_OUTOFMEMORY: return "DDERR_OUTOFMEMORY";
-    case DDERR_OUTOFVIDEOMEMORY: return "DDERR_OUTOFVIDEOMEMORY";
-    case DDERR_OVERLAYCANTCLIP: return "DDERR_OVERLAYCANTCLIP";
-    case DDERR_OVERLAYCOLORKEYONLYONEACTIVE: return "DDERR_OVERLAYCOLORKEYONLYONEACTIVE";
-    case DDERR_PALETTEBUSY: return "DDERR_PALETTEBUSY";
-    case DDERR_COLORKEYNOTSET: return "DDERR_COLORKEYNOTSET";
-    case DDERR_SURFACEALREADYATTACHED: return "DDERR_SURFACEALREADYATTACHED";
-    case DDERR_SURFACEALREADYDEPENDENT: return "DDERR_SURFACEALREADYDEPENDENT";
-    case DDERR_SURFACEBUSY: return "DDERR_SURFACEBUSY";
-    case DDERR_CANTLOCKSURFACE: return "DDERR_CANTLOCKSURFACE";
-    case DDERR_SURFACEISOBSCURED: return "DDERR_SURFACEISOBSCURED";
-    case DDERR_SURFACELOST: return "DDERR_SURFACELOST";
-    case DDERR_SURFACENOTATTACHED: return "DDERR_SURFACENOTATTACHED";
-    case DDERR_TOOBIGHEIGHT: return "DDERR_TOOBIGHEIGHT";
-    case DDERR_TOOBIGSIZE: return "DDERR_TOOBIGSIZE";
-    case DDERR_TOOBIGWIDTH: return "DDERR_TOOBIGWIDTH";
-    case DDERR_UNSUPPORTED: return "DDERR_UNSUPPORTED";
-    case DDERR_UNSUPPORTEDFORMAT: return "DDERR_UNSUPPORTEDFORMAT";
-    case DDERR_UNSUPPORTEDMASK: return "DDERR_UNSUPPORTEDMASK";
-    case DDERR_VERTICALBLANKINPROGRESS: return "DDERR_VERTICALBLANKINPROGRESS";
-    case DDERR_WASSTILLDRAWING: return "DDERR_WASSTILLDRAWING";
-    case DDERR_XALIGN: return "DDERR_XALIGN";
-    case DDERR_INVALIDDIRECTDRAWGUID: return "DDERR_INVALIDDIRECTDRAWGUID";
-    case DDERR_DIRECTDRAWALREADYCREATED: return "DDERR_DIRECTDRAWALREADYCREATED";
-    case DDERR_NODIRECTDRAWHW: return "DDERR_NODIRECTDRAWHW";
-    case DDERR_PRIMARYSURFACEALREADYEXISTS: return "DDERR_PRIMARYSURFACEALREADYEXISTS";
-    case DDERR_NOEMULATION: return "DDERR_NOEMULATION";
-    case DDERR_REGIONTOOSMALL: return "DDERR_REGIONTOOSMALL";
-    case DDERR_CLIPPERISUSINGHWND: return "DDERR_CLIPPERISUSINGHWND";
-    case DDERR_NOCLIPPERATTACHED: return "DDERR_NOCLIPPERATTACHED";
-    case DDERR_NOHWND: return "DDERR_NOHWND";
-    case DDERR_HWNDSUBCLASSED: return "DDERR_HWNDSUBCLASSED";
-    case DDERR_HWNDALREADYSET: return "DDERR_HWNDALREADYSET";
-    case DDERR_NOPALETTEATTACHED: return "DDERR_NOPALETTEATTACHED";
-    case DDERR_NOPALETTEHW: return "DDERR_NOPALETTEHW";
-    case DDERR_BLTFASTCANTCLIP: return "DDERR_BLTFASTCANTCLIP";
-    case DDERR_NOBLTHW: return "DDERR_NOBLTHW";
-    case DDERR_NODDROPSHW: return "DDERR_NODDROPSHW";
-    case DDERR_OVERLAYNOTVISIBLE: return "DDERR_OVERLAYNOTVISIBLE";
-    case DDERR_NOOVERLAYDEST: return "DDERR_NOOVERLAYDEST";
-    case DDERR_INVALIDPOSITION: return "DDERR_INVALIDPOSITION";
-    case DDERR_NOTAOVERLAYSURFACE: return "DDERR_NOTAOVERLAYSURFACE";
-    case DDERR_EXCLUSIVEMODEALREADYSET: return "DDERR_EXCLUSIVEMODEALREADYSET";
-    case DDERR_NOTFLIPPABLE: return "DDERR_NOTFLIPPABLE";
-    case DDERR_CANTDUPLICATE: return "DDERR_CANTDUPLICATE";
-    case DDERR_NOTLOCKED: return "DDERR_NOTLOCKED";
-    case DDERR_CANTCREATEDC: return "DDERR_CANTCREATEDC";
-    case DDERR_NODC: return "DDERR_NODC";
-    case DDERR_WRONGMODE: return "DDERR_WRONGMODE";
-    case DDERR_IMPLICITLYCREATED: return "DDERR_IMPLICITLYCREATED";
-    case DDERR_NOTPALETTIZED: return "DDERR_NOTPALETTIZED";
-    case DDERR_UNSUPPORTEDMODE: return "DDERR_UNSUPPORTEDMODE";
-    case DDERR_NOMIPMAPHW: return "DDERR_NOMIPMAPHW";
-    case DDERR_INVALIDSURFACETYPE: return "DDERR_INVALIDSURFACETYPE";
-    case DDERR_DCALREADYCREATED: return "DDERR_DCALREADYCREATED";
-    case DDERR_CANTPAGELOCK: return "DDERR_CANTPAGELOCK";
-    case DDERR_CANTPAGEUNLOCK: return "DDERR_CANTPAGEUNLOCK";
-    case DDERR_NOTPAGELOCKED: return "DDERR_NOTPAGELOCKED";
-    case DDERR_NOTINITIALIZED: return "DDERR_NOTINITIALIZED";
-    case E_NOINTERFACE: return "E_NOINTERFACE";
+    -1.00f,  1.00f, -1.00f,  0.0f,  0.0f, -1.0f,  0.0f,  0.0f,  1.00f,  1.00f, -1.00f,  0.0f,  0.0f, -1.0f,  9.5f,  0.0f,
+     0.58f,  0.58f, -1.00f,  0.0f,  0.0f, -1.0f,  7.5f,  2.0f, -0.58f,  0.58f, -1.00f,  0.0f,  0.0f, -1.0f,  2.0f,  2.0f,
+    -0.58f,  0.58f, -1.00f,  0.0f, -1.0f,  0.0f,  0.0f,  0.0f,  0.58f,  0.58f, -1.00f,  0.0f, -1.0f,  0.0f,  0.0f,  0.0f,
+     0.58f,  0.58f, -0.58f,  0.0f, -1.0f,  0.0f,  0.0f,  0.0f, -0.58f,  0.58f, -0.58f,  0.0f, -1.0f,  0.0f,  0.0f,  0.0f,
+};
 
-    default:
-        static char buffer[48] = {};
-        snprintf(buffer, sizeof(buffer), "Unknown Error: %#lx", err);
-        return buffer;
-    }
-}
-static bool printDDError(HRESULT hErr)
+UINT IndexData[] = { 0, 1, 3, 1, 2, 3, 4, 5, 7, 5, 6, 7 };
+
+UINT InstanceRotationData[] = { 0, 0, 0, 0, 0, 1, 0, 0, 2, 0, 0, 3, 1, 0, 0, 1, 1, 0, 1, 2, 0, 1, 3, 0, 2, 0, 0, 2, 0, 1, 2, 0, 2, 2, 0, 3, 3, 0, 0, 3, 1, 0, 3, 2, 0, 3, 3, 0, 1, 0, 1, 1, 1, 1, 1, 2, 1, 1, 3, 1, 1, 0, 3, 1, 1, 3, 1, 2, 3, 1, 3, 3 }; // rot.x, rot.y, rot.z, ... in multiples of 90 degrees
+
+float InstanceColorData[] = { 0.973f, 0.480f, 0.002f, 0.897f, 0.163f, 0.011f, 0.612f, 0.000f, 0.069f, 0.127f, 0.116f, 0.408f, 0.000f, 0.254f, 0.637f, 0.001f, 0.447f, 0.067f }; // col.r, col.g, col.b, ...
+
+///////////////////////////////////////////////////////////////////////////////////////////////////
+
+int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine, int nShowCmd)
 {
-    printf("DirectDraw Error %s\n", dderr2str(hErr));
-    return true;
-}
-#undef FAILED
-#define FAILED(f) auto hr = (f); (HRESULT)hr < 0 && (printf(#f "\n"), printDDError(hr))
+    WNDCLASSA wndClass = { 0, DefWindowProcA, 0, 0, 0, 0, 0, 0, 0, TITLE };
 
-bool InitD3D(HWND hWnd)
-{
-    printf("Setup DDraw\n");
-    if (FAILED(DirectDrawCreateEx(nullptr, (void**)&lpDD, IID_IDirectDraw7, nullptr)))
-        return false;
+    RegisterClassA(&wndClass);
 
-    if (fullscreen)
+    HWND window = CreateWindowExA(0, TITLE, TITLE, WS_POPUP | WS_MAXIMIZE | WS_VISIBLE, 0, 0, 0, 0, nullptr, nullptr, nullptr, nullptr);
+
+    ///////////////////////////////////////////////////////////////////////////////////////////////
+
+    D3D_FEATURE_LEVEL featureLevels[] = { D3D_FEATURE_LEVEL_11_0 };
+
+    ID3D11Device* baseDevice;
+    ID3D11DeviceContext* baseDeviceContext;
+
+    D3D11CreateDevice(nullptr, D3D_DRIVER_TYPE_HARDWARE, nullptr, D3D11_CREATE_DEVICE_BGRA_SUPPORT, featureLevels, ARRAYSIZE(featureLevels), D3D11_SDK_VERSION, &baseDevice, nullptr, &baseDeviceContext);
+
+    ///////////////////////////////////////////////////////////////////////////////////////////////
+
+    ID3D11Device1* device;
+
+    baseDevice->QueryInterface(__uuidof(ID3D11Device1), reinterpret_cast<void**>(&device));
+
+    ID3D11DeviceContext1* deviceContext;
+
+    baseDeviceContext->QueryInterface(__uuidof(ID3D11DeviceContext1), reinterpret_cast<void**>(&deviceContext));
+
+    ///////////////////////////////////////////////////////////////////////////////////////////////
+
+    IDXGIDevice1* dxgiDevice;
+
+    device->QueryInterface(__uuidof(IDXGIDevice1), reinterpret_cast<void**>(&dxgiDevice));
+
+    IDXGIAdapter* dxgiAdapter;
+
+    dxgiDevice->GetAdapter(&dxgiAdapter);
+
+    IDXGIFactory2* dxgiFactory;
+
+    dxgiAdapter->GetParent(__uuidof(IDXGIFactory2), reinterpret_cast<void**>(&dxgiFactory));
+
+    ///////////////////////////////////////////////////////////////////////////////////////////////
+
+    DXGI_SWAP_CHAIN_DESC1 swapChainDesc;
+    swapChainDesc.Width              = 0; // use window width
+    swapChainDesc.Height             = 0; // use window height
+    swapChainDesc.Format             = DXGI_FORMAT_B8G8R8A8_UNORM; // can't specify _SRGB here when using DXGI_SWAP_EFFECT_FLIP_* ...;
+    swapChainDesc.Stereo             = FALSE;
+    swapChainDesc.SampleDesc.Count   = 1;
+    swapChainDesc.SampleDesc.Quality = 0;
+    swapChainDesc.BufferUsage        = DXGI_USAGE_RENDER_TARGET_OUTPUT;
+    swapChainDesc.BufferCount        = 2;
+    swapChainDesc.Scaling            = DXGI_SCALING_STRETCH;
+    swapChainDesc.SwapEffect         = DXGI_SWAP_EFFECT_FLIP_DISCARD;
+    swapChainDesc.AlphaMode          = DXGI_ALPHA_MODE_UNSPECIFIED;
+    swapChainDesc.Flags              = 0;
+
+    IDXGISwapChain1* swapChain;
+
+    dxgiFactory->CreateSwapChainForHwnd(device, window, &swapChainDesc, nullptr, nullptr, &swapChain);
+
+    ///////////////////////////////////////////////////////////////////////////////////////////////
+
+    ID3D11Texture2D* frameBuffer;
+
+    swapChain->GetBuffer(0, __uuidof(ID3D11Texture2D), reinterpret_cast<void**>(&frameBuffer));
+
+    D3D11_RENDER_TARGET_VIEW_DESC framebufferDesc = {};
+    framebufferDesc.Format        = DXGI_FORMAT_B8G8R8A8_UNORM_SRGB; // ... so do this to get _SRGB swapchain
+    framebufferDesc.ViewDimension = D3D11_RTV_DIMENSION_TEXTURE2D;
+    
+    ID3D11RenderTargetView* frameBufferView;
+
+    device->CreateRenderTargetView(frameBuffer, &framebufferDesc, &frameBufferView);
+
+    ///////////////////////////////////////////////////////////////////////////////////////////////
+
+    D3D11_TEXTURE2D_DESC depthBufferDesc;
+
+    frameBuffer->GetDesc(&depthBufferDesc); // copy from framebuffer properties
+
+    depthBufferDesc.Format    = DXGI_FORMAT_D24_UNORM_S8_UINT;
+    depthBufferDesc.BindFlags = D3D11_BIND_DEPTH_STENCIL;
+
+    ID3D11Texture2D* depthBuffer;
+
+    device->CreateTexture2D(&depthBufferDesc, nullptr, &depthBuffer);
+
+    ID3D11DepthStencilView* depthBufferView;
+
+    device->CreateDepthStencilView(depthBuffer, nullptr, &depthBufferView);
+
+    ///////////////////////////////////////////////////////////////////////////////////////////////
+
+    ID3DBlob* vsBlob;
+
+    D3DCompileFromFile(L"shaders.hlsl", nullptr, nullptr, "vs_main", "vs_5_0", 0, 0, &vsBlob, nullptr);
+
+    ID3D11VertexShader* vertexShader;
+
+    device->CreateVertexShader(vsBlob->GetBufferPointer(), vsBlob->GetBufferSize(), nullptr, &vertexShader);
+
+    D3D11_INPUT_ELEMENT_DESC inputElementDesc[] = // float3 position, float3 normal, float2 texcoord, uint3 rotation, float3 color
     {
-        if (FAILED(lpDD->SetCooperativeLevel(hWnd, DDSCL_FULLSCREEN | DDSCL_EXCLUSIVE)))
-            return false;
-        if (FAILED(lpDD->SetDisplayMode(640, 480, 32, 0, 0)))
-            return false;
-    }
-    else
-    {
-        if (FAILED(lpDD->SetCooperativeLevel(hWnd, DDSCL_NORMAL)))
-            return false;
-    }
-
-    DDSURFACEDESC2 ddsd = { sizeof(ddsd) };
-    ddsd.dwFlags = DDSD_CAPS;
-    ddsd.ddsCaps.dwCaps = DDSCAPS_PRIMARYSURFACE;
-
-    if (fullscreen)
-    {
-        ddsd.ddsCaps.dwCaps |= DDSCAPS_FLIP | DDSCAPS_COMPLEX;
-        ddsd.dwFlags |= DDSD_BACKBUFFERCOUNT;
-        ddsd.dwBackBufferCount = 1;
-    }
-
-    printf("Get Primary Surface\n");
-    if (FAILED(lpDD->CreateSurface(&ddsd, &lpPrimary, nullptr)))
-        return false;
-
-    printf("Get Back Buffer\n");
-    if (fullscreen)
-    {
-        DDSCAPS2 ddscaps = { DDSCAPS_BACKBUFFER };
-        if (FAILED(lpPrimary->GetAttachedSurface(&ddscaps, &lpBackBuffer)))
-            return false;
-    }
-    else
-    {
-        // Retrieve pixel format from primary surface
-        DDPIXELFORMAT pf = { sizeof(pf) };
-        if (FAILED(lpPrimary->GetPixelFormat(&pf)))
-            return false;
-        printf("Pixel Format: %#lx, %#lx, %lu, %#lx, %#lx, %#lx, %#lx\n",
-               pf.dwFlags, pf.dwFourCC,
-               pf.dwRGBBitCount, pf.dwRBitMask,
-               pf.dwGBitMask, pf.dwBBitMask,
-               pf.dwRGBAlphaBitMask);
-
-        // Create a back buffer with matching pixel format
-        DDSURFACEDESC2 backDesc = { sizeof(backDesc) };
-        backDesc.dwFlags = DDSD_WIDTH | DDSD_HEIGHT | DDSD_CAPS | DDSD_PIXELFORMAT;
-        backDesc.ddsCaps.dwCaps = DDSCAPS_OFFSCREENPLAIN | DDSCAPS_3DDEVICE | DDSCAPS_VIDEOMEMORY;
-        backDesc.dwWidth = 640;
-        backDesc.dwHeight = 480;
-        backDesc.ddpfPixelFormat = pf;
-
-        if (FAILED(lpDD->CreateSurface(&backDesc, &lpBackBuffer, nullptr)))
-            return false;
-
-        // Create and set up the clipper for windowed mode
-        if (FAILED(lpDD->CreateClipper(0, &lpClipper, nullptr)))
-            return false;
-        if (FAILED(lpClipper->SetHWnd(0, hWnd)))
-            return false;
-        if (FAILED(lpPrimary->SetClipper(lpClipper)))
-            return false;
-    }
-
-    printf("Setup D3D\n");
-    if (FAILED(lpDD->QueryInterface(IID_IDirect3D7, (void**)&lpD3D)))
-        return false;
-
-    printf("Create Device\n");
-    if (FAILED(lpD3D->CreateDevice(IID_IDirect3DHALDevice, lpBackBuffer, &lpD3DDevice)))
-        if (FAILED(lpD3D->CreateDevice(IID_IDirect3DRGBDevice, lpBackBuffer, &lpD3DDevice)))
-            return false;
-
-    lpD3DDevice->SetRenderState(D3DRENDERSTATE_CULLMODE, D3DCULL_CCW);
-
-    // Define triangle vertices
-    struct CUSTOMVERTEX {
-      FLOAT x, y, z, rhw;
-      DWORD color;
-    };
-    static constexpr CUSTOMVERTEX vertices[] = {
-        { 320.0f,  50.0f, 0.5f, 1.0f, 0xFFFF0000 },  // Top (red)
-        { 420.0f, 400.0f, 0.5f, 1.0f, 0xFF0000FF },  // Bottom-right (blue)
-        { 220.0f, 400.0f, 0.5f, 1.0f, 0xFF00FF00 },  // Bottom-left (green)
+        { "POS", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0,                            0, D3D11_INPUT_PER_VERTEX_DATA,   0 },
+        { "NOR", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0, D3D11_APPEND_ALIGNED_ELEMENT, D3D11_INPUT_PER_VERTEX_DATA,   0 },
+        { "TEX", 0, DXGI_FORMAT_R32G32_FLOAT,    0, D3D11_APPEND_ALIGNED_ELEMENT, D3D11_INPUT_PER_VERTEX_DATA,   0 },
+        { "ROT", 0, DXGI_FORMAT_R32G32B32_UINT,  1, D3D11_APPEND_ALIGNED_ELEMENT, D3D11_INPUT_PER_INSTANCE_DATA, 1 }, // advance every instance
+        { "COL", 0, DXGI_FORMAT_R32G32B32_FLOAT, 2, D3D11_APPEND_ALIGNED_ELEMENT, D3D11_INPUT_PER_INSTANCE_DATA, 4 }, // advance every 4th instance, i.e. every face
     };
 
-    printf("Create Vertex Buffer\n");
-    D3DVERTEXBUFFERDESC vdesc = {sizeof(vdesc), D3DVBCAPS_WRITEONLY,
-                                 D3DFVF_XYZRHW | D3DFVF_DIFFUSE,
-                                 sizeof(vertices) / sizeof(vertices[0])};
-    if (FAILED(lpD3D->CreateVertexBuffer(&vdesc, &lpVertexBuffer, 0)))
-        return false;
+    ID3D11InputLayout* inputLayout;
 
-    CUSTOMVERTEX *pVertices;
-    if (FAILED(lpVertexBuffer->Lock(DDLOCK_WRITEONLY, (void**)&pVertices, nullptr)))
-        return false;
-    memcpy(pVertices, vertices, sizeof(vertices));
-    if (FAILED(lpVertexBuffer->Unlock()))
-        return false;
+    device->CreateInputLayout(inputElementDesc, ARRAYSIZE(inputElementDesc), vsBlob->GetBufferPointer(), vsBlob->GetBufferSize(), &inputLayout);
 
-    return true;
-}
+    ///////////////////////////////////////////////////////////////////////////////////////////////
 
-void Cleanup() {
-    if (lpClipper) lpClipper->Release();
-    if (lpVertexBuffer) lpVertexBuffer->Release();
-    if (lpD3DDevice) lpD3DDevice->Release();
-    if (lpD3D) lpD3D->Release();
-    if (lpBackBuffer) lpBackBuffer->Release();
-    if (lpPrimary) lpPrimary->Release();
-    if (lpDD) lpDD->Release();
-}
+    ID3DBlob* psBlob;
 
-void Render()
-{
-    if (!lpD3DDevice)
-      return;
-    lpD3DDevice->Clear(0, nullptr, D3DCLEAR_TARGET, 0xFF000000, 1.0f, 0);
-    lpD3DDevice->BeginScene();
+    D3DCompileFromFile(L"shaders.hlsl", nullptr, nullptr, "ps_main", "ps_5_0", 0, 0, &psBlob, nullptr);
 
-    lpD3DDevice->DrawPrimitiveVB(D3DPT_TRIANGLELIST, lpVertexBuffer, 0, 3, D3DDP_DONOTCLIP);
+    ID3D11PixelShader* pixelShader;
 
-    lpD3DDevice->EndScene();
+    device->CreatePixelShader(psBlob->GetBufferPointer(), psBlob->GetBufferSize(), nullptr, &pixelShader);
 
-    if (fullscreen) {
-        lpPrimary->Flip(nullptr, DDFLIP_WAIT);
-    } else {
-        // Blit back buffer to primary surface at the window location
-        POINT p = {};
-        RECT rect;
-        ClientToScreen(hWnd, &p);
-        GetClientRect(hWnd, &rect);
-        OffsetRect(&rect, p.x, p.y);
-        lpPrimary->Blt(&rect, lpBackBuffer, nullptr, DDBLT_WAIT, nullptr);
-    }
-}
+    ///////////////////////////////////////////////////////////////////////////////////////////////
 
-LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
-{
-    switch (message) {
-        case WM_DESTROY:
-            PostQuitMessage(0);
-            return 0;
-    }
-    return DefWindowProc(hWnd, message, wParam, lParam);
-}
+    D3D11_RASTERIZER_DESC1 rasterizerDesc = {};
+    rasterizerDesc.FillMode = D3D11_FILL_SOLID;
+    rasterizerDesc.CullMode = D3D11_CULL_BACK;
 
-int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE /*hPrevInstance*/, LPSTR lpCmdLine, int /*nCmdShow*/)
-{
-    fullscreen = (strstr(lpCmdLine, "-fullscreen") != nullptr);
-    printf("Fullscreen: %d\n", fullscreen);
+    ID3D11RasterizerState1* rasterizerState;
 
-    const WNDCLASS wc = { CS_CLASSDC, WndProc, 0, 0, hInstance, nullptr, nullptr, nullptr, nullptr, "D3D7Triangle" };
-    RegisterClass(&wc);
+    device->CreateRasterizerState1(&rasterizerDesc, &rasterizerState);
 
-    DWORD style = fullscreen ? WS_POPUP : WS_OVERLAPPED;
-    hWnd = CreateWindow("D3D7Triangle", "Direct3D 7 Triangle", style, 100, 100, 640, 480, nullptr, nullptr, hInstance, nullptr);
+    ///////////////////////////////////////////////////////////////////////////////////////////////
 
-    if (!InitD3D(hWnd))
-        return 0;
+    D3D11_SAMPLER_DESC samplerDesc = {};
+    samplerDesc.Filter         = D3D11_FILTER_MIN_MAG_MIP_POINT;
+    samplerDesc.AddressU       = D3D11_TEXTURE_ADDRESS_WRAP;
+    samplerDesc.AddressV       = D3D11_TEXTURE_ADDRESS_WRAP;
+    samplerDesc.AddressW       = D3D11_TEXTURE_ADDRESS_WRAP;
+    samplerDesc.ComparisonFunc = D3D11_COMPARISON_NEVER;
 
-    ShowWindow(hWnd, SW_SHOWDEFAULT);
-    UpdateWindow(hWnd);
+    ID3D11SamplerState* samplerState;
 
-     MSG msg = {};
-    while (msg.message != WM_QUIT) {
-        if (PeekMessage(&msg, nullptr, 0, 0, PM_REMOVE)) {
-            TranslateMessage(&msg);
-            DispatchMessage(&msg);
-        } else {
-            Render();
+    device->CreateSamplerState(&samplerDesc, &samplerState);
+
+    ///////////////////////////////////////////////////////////////////////////////////////////////
+
+    D3D11_DEPTH_STENCIL_DESC depthStencilDesc = {};
+    depthStencilDesc.DepthEnable    = TRUE;
+    depthStencilDesc.DepthWriteMask = D3D11_DEPTH_WRITE_MASK_ALL;
+    depthStencilDesc.DepthFunc      = D3D11_COMPARISON_LESS;
+
+    ID3D11DepthStencilState* depthStencilState;
+
+    device->CreateDepthStencilState(&depthStencilDesc, &depthStencilState);
+
+    ///////////////////////////////////////////////////////////////////////////////////////////////
+
+    struct float4 { float x, y, z, w; };
+
+    struct Constants
+    {
+        float4 Projection[4];
+        float4 LightVector;
+        float4 Rotate;
+        float4 Scale;
+        float4 Translate;
+    };
+
+    D3D11_BUFFER_DESC constantBufferDesc = {};
+    constantBufferDesc.ByteWidth      = sizeof(Constants) + 0xf & 0xfffffff0; // ensure constant buffer size is multiple of 16 bytes
+    constantBufferDesc.Usage          = D3D11_USAGE_DYNAMIC;
+    constantBufferDesc.BindFlags      = D3D11_BIND_CONSTANT_BUFFER;
+    constantBufferDesc.CPUAccessFlags = D3D11_CPU_ACCESS_WRITE;
+
+    ID3D11Buffer* constantBuffer;
+
+    device->CreateBuffer(&constantBufferDesc, nullptr, &constantBuffer);
+
+    ///////////////////////////////////////////////////////////////////////////////////////////////
+
+    D3D11_BUFFER_DESC vertexBufferDesc = {};
+    vertexBufferDesc.ByteWidth = sizeof(VertexData);
+    vertexBufferDesc.Usage     = D3D11_USAGE_IMMUTABLE;
+    vertexBufferDesc.BindFlags = D3D11_BIND_VERTEX_BUFFER;
+
+    D3D11_SUBRESOURCE_DATA vertexData = { VertexData };
+
+    ID3D11Buffer* vertexBuffer;
+
+    device->CreateBuffer(&vertexBufferDesc, &vertexData, &vertexBuffer);
+
+    ///////////////////////////////////////////////////////////////////////////////////////////////
+
+    D3D11_BUFFER_DESC indexBufferDesc = {};
+    indexBufferDesc.ByteWidth = sizeof(IndexData);
+    indexBufferDesc.Usage     = D3D11_USAGE_IMMUTABLE;
+    indexBufferDesc.BindFlags = D3D11_BIND_INDEX_BUFFER;
+
+    D3D11_SUBRESOURCE_DATA indexData = { IndexData };
+
+    ID3D11Buffer* indexBuffer;
+
+    device->CreateBuffer(&indexBufferDesc, &indexData, &indexBuffer);
+
+    ///////////////////////////////////////////////////////////////////////////////////////////////
+
+    D3D11_BUFFER_DESC instanceBufferDesc = {};
+    instanceBufferDesc.Usage     = D3D11_USAGE_IMMUTABLE;
+    instanceBufferDesc.BindFlags = D3D11_BIND_VERTEX_BUFFER;
+
+    D3D11_SUBRESOURCE_DATA instanceData = {};
+
+    ID3D11Buffer* instanceRotationBuffer;
+
+    instanceBufferDesc.ByteWidth = sizeof(InstanceRotationData);
+    instanceData.pSysMem         = { InstanceRotationData };
+
+    device->CreateBuffer(&instanceBufferDesc, &instanceData, &instanceRotationBuffer);
+
+    ID3D11Buffer* instanceColorBuffer;
+
+    instanceBufferDesc.ByteWidth = sizeof(InstanceColorData);
+    instanceData.pSysMem         = { InstanceColorData };
+
+    device->CreateBuffer(&instanceBufferDesc, &instanceData, &instanceColorBuffer);
+
+    ///////////////////////////////////////////////////////////////////////////////////////////////
+
+    D3D11_TEXTURE2D_DESC textureDesc = {};
+    textureDesc.Width            = 2;
+    textureDesc.Height           = 2;
+    textureDesc.MipLevels        = 1;
+    textureDesc.ArraySize        = 1;
+    textureDesc.Format           = DXGI_FORMAT_R8G8B8A8_UNORM_SRGB;
+    textureDesc.SampleDesc.Count = 1;
+    textureDesc.Usage            = D3D11_USAGE_IMMUTABLE;
+    textureDesc.BindFlags        = D3D11_BIND_SHADER_RESOURCE;
+
+    D3D11_SUBRESOURCE_DATA textureData = {};
+    textureData.pSysMem          = TextureData;
+    textureData.SysMemPitch      = 2 * sizeof(UINT); // texture is 2 pixels wide, 4 bytes per pixel
+
+    ID3D11Texture2D* texture;
+
+    device->CreateTexture2D(&textureDesc, &textureData, &texture);
+
+    ID3D11ShaderResourceView* textureView;
+
+    device->CreateShaderResourceView(texture, nullptr, &textureView);
+
+    ///////////////////////////////////////////////////////////////////////////////////////////////
+
+    FLOAT backgroundColor[4] = { 0.025f, 0.025f, 0.025f, 1.0f };
+
+    ID3D11Buffer* buffers[] = { vertexBuffer, instanceRotationBuffer, instanceColorBuffer };
+    UINT          strides[] = { 8 * sizeof(float), 3 * sizeof(UINT), 3 * sizeof(float) }; // vertex (float3 position, float3 normal, float2 texcoord), instance rotation (uint3 rotation), instance color (float3 color)
+    UINT          offsets[] = { 0, 0, 0 };
+
+    D3D11_VIEWPORT viewport = { 0.0f, 0.0f, static_cast<float>(depthBufferDesc.Width), static_cast<float>(depthBufferDesc.Height), 0.0f, 1.0f };
+    
+    ///////////////////////////////////////////////////////////////////////////////////////////////
+
+    float w = viewport.Width / viewport.Height; // width (aspect ratio)
+    float h = 1.0f;                             // height
+    float n = 1.0f;                             // near
+    float f = 9.0f;                             // far
+
+    Constants constants   = { 2 * n / w, 0, 0, 0, 0, 2 * n / h, 0, 0, 0, 0, f / (f - n), 1, 0, 0, n * f / (n - f), 0 }; // projection matrix
+
+    constants.LightVector = {  1.0f, -1.0f,  1.0f };
+    constants.Rotate      = {  0.0f,  0.0f,  0.0f };
+    constants.Scale       = {  1.0f,  1.0f,  1.0f };
+    constants.Translate   = {  0.0f,  0.0f,  4.0f };
+
+    ///////////////////////////////////////////////////////////////////////////////////////////////
+
+    while (true)
+    {
+        MSG msg;
+
+        while (PeekMessageA(&msg, nullptr, 0, 0, PM_REMOVE))
+        {
+            if (msg.message == WM_KEYDOWN) return 0;
+            DispatchMessageA(&msg);
         }
-    }
 
-    Cleanup();
-    return (int)msg.wParam;
+        ///////////////////////////////////////////////////////////////////////////////////////////
+
+        constants.Rotate.x += 0.005f;
+        constants.Rotate.y += 0.009f;
+        constants.Rotate.z += 0.001f;
+
+        ///////////////////////////////////////////////////////////////////////////////////////////
+
+        D3D11_MAPPED_SUBRESOURCE mappedSubresource;
+
+        deviceContext->Map(constantBuffer, 0, D3D11_MAP_WRITE_DISCARD, 0, &mappedSubresource);
+
+        *reinterpret_cast<Constants*>(mappedSubresource.pData) = constants;
+
+        deviceContext->Unmap(constantBuffer, 0);
+
+        ///////////////////////////////////////////////////////////////////////////////////////////
+
+        deviceContext->ClearRenderTargetView(frameBufferView, backgroundColor);
+        deviceContext->ClearDepthStencilView(depthBufferView, D3D11_CLEAR_DEPTH, 1.0f, 0);
+
+        deviceContext->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
+        deviceContext->IASetInputLayout(inputLayout);
+        deviceContext->IASetVertexBuffers(0, 3, buffers, strides, offsets);
+        deviceContext->IASetIndexBuffer(indexBuffer, DXGI_FORMAT_R32_UINT, 0);
+
+        deviceContext->VSSetShader(vertexShader, nullptr, 0);
+        deviceContext->VSSetConstantBuffers(0, 1, &constantBuffer);
+
+        deviceContext->RSSetViewports(1, &viewport);
+        deviceContext->RSSetState(rasterizerState);
+
+        deviceContext->PSSetShader(pixelShader, nullptr, 0);
+        deviceContext->PSSetShaderResources(0, 1, &textureView);
+        deviceContext->PSSetSamplers(0, 1, &samplerState);
+
+        deviceContext->OMSetRenderTargets(1, &frameBufferView, depthBufferView);
+        deviceContext->OMSetDepthStencilState(depthStencilState, 0);
+        deviceContext->OMSetBlendState(nullptr, nullptr, 0xffffffff); // use default blend mode (i.e. disable)
+
+        ///////////////////////////////////////////////////////////////////////////////////////////
+
+        deviceContext->DrawIndexedInstanced(ARRAYSIZE(IndexData), 24, 0, 0, 0);
+
+        ///////////////////////////////////////////////////////////////////////////////////////////
+
+        swapChain->Present(1, 0);
+    }
 }
