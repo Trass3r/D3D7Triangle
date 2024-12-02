@@ -24,4 +24,4 @@ jobs:
       with:
        name: ${{ matrix.preset }}
        path: |
-         build*/D3D7Triangle.*
+         build*/D3D11Triangle.*
