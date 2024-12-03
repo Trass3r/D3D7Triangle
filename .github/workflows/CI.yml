@@ -24,4 +24,6 @@ jobs:
       with:
        name: ${{ matrix.preset }}
        path: |
-         build*/D3D11Triangle.*
+         build*/*.exe
+         build*/*.pdb
+         *.hlsl
