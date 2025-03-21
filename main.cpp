@@ -1,6 +1,8 @@
+#include <cstdlib>
 #include <windows.h>
 #include <d3d11.h>
 #include <d3dcompiler.h>
+#include <comdef.h>
 
 #include <math.h> // sin, cos
 #include "xube.h" // 3d model
@@ -33,20 +35,26 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine
     DXGI_SWAP_CHAIN_DESC swapchaindesc = {};
     swapchaindesc.BufferDesc.Width  = 0; // use window width
     swapchaindesc.BufferDesc.Height = 0; // use window height
-    swapchaindesc.BufferDesc.Format = DXGI_FORMAT_B8G8R8A8_UNORM; // can't specify SRGB framebuffer directly when using FLIP model swap effect. see lines 49, 66
+    swapchaindesc.BufferDesc.Format = DXGI_FORMAT_B8G8R8A8_UNORM_SRGB; // can't specify SRGB framebuffer directly when using FLIP model swap effect. see lines 49, 66
     swapchaindesc.SampleDesc.Count  = 1;
     swapchaindesc.BufferUsage       = DXGI_USAGE_RENDER_TARGET_OUTPUT;
-    swapchaindesc.BufferCount       = 2;
+    swapchaindesc.BufferCount       = 1;
     swapchaindesc.OutputWindow      = window;
     swapchaindesc.Windowed          = TRUE;
-    swapchaindesc.SwapEffect        = DXGI_SWAP_EFFECT_FLIP_DISCARD;
+    swapchaindesc.SwapEffect        = DXGI_SWAP_EFFECT_DISCARD;
 
     IDXGISwapChain* swapchain;
 
     ID3D11Device* device;
     ID3D11DeviceContext* devicecontext;
 
-    D3D11CreateDeviceAndSwapChain(nullptr, D3D_DRIVER_TYPE_HARDWARE, nullptr, D3D11_CREATE_DEVICE_BGRA_SUPPORT | D3D11_CREATE_DEVICE_DEBUG, featurelevels, ARRAYSIZE(featurelevels), D3D11_SDK_VERSION, &swapchaindesc, &swapchain, &device, nullptr, &devicecontext); // D3D11_CREATE_DEVICE_DEBUG is optional, but provides useful d3d11 debug output
+    HRESULT hr = D3D11CreateDeviceAndSwapChain(nullptr, D3D_DRIVER_TYPE_HARDWARE, nullptr, D3D11_CREATE_DEVICE_BGRA_SUPPORT, featurelevels, ARRAYSIZE(featurelevels), D3D11_SDK_VERSION, &swapchaindesc, &swapchain, &device, nullptr, &devicecontext); // D3D11_CREATE_DEVICE_DEBUG is optional, but provides useful d3d11 debug output
+    if (hr) {
+        _com_error err(hr);
+        LPCTSTR errMsg = err.ErrorMessage(); // e.g. DXGI_ERROR_INVALID_CALL
+        printf("ERROR: Create Swapchain: %s\n", errMsg);
+        exit(1);
+    }
 
     swapchain->GetDesc(&swapchaindesc); // update swapchaindesc with actual window size
 
