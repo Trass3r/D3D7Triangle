@@ -25,7 +25,7 @@ SamplerState mysampler : register(s0);
 
 pixeldesc VertexShaderMain(vertexdesc vertex)
 {
-    float light = clamp(dot(mul(vertex.normal, transform), normalize(-lightvector)), 0.0f, 1.0f) * 0.8f + 0.2f;
+    float light = clamp(dot(mul(vertex.normal, (float3x3)transform), normalize(-lightvector)), 0.0f, 1.0f) * 0.8f + 0.2f;
     
     pixeldesc output;
 
