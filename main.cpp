@@ -41,7 +41,7 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine
     swapchaindesc.BufferCount       = 1;
     swapchaindesc.OutputWindow      = window;
     swapchaindesc.Windowed          = TRUE;
-    swapchaindesc.SwapEffect        = DXGI_SWAP_EFFECT_DISCARD;
+    swapchaindesc.SwapEffect        = DXGI_SWAP_EFFECT_FLIP_DISCARD;
 
     IDXGISwapChain* swapchain;
 
