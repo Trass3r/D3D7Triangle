@@ -125,7 +125,7 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine
 
     D3D11_RASTERIZER_DESC rasterizerdesc = {};
     rasterizerdesc.FillMode = D3D11_FILL_SOLID;
-    rasterizerdesc.CullMode = D3D11_CULL_BACK;
+    rasterizerdesc.CullMode = D3D11_CULL_NONE;
 
     ID3D11RasterizerState* rasterizerstate;
 
