@@ -5,11 +5,11 @@
 #include <comdef.h>
 
 #include <math.h> // sin, cos
-#include "xube.h" // 3d model
+#include "xube.h" // Changed to use our new header with BC1 texture
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
-#define TITLE "Minimal D3D11 by d7samurai"
+#define TITLE "Minimal D3D11 by d7samurai (BC1 texture)"
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
@@ -41,14 +41,14 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine
     swapchaindesc.BufferCount       = 1;
     swapchaindesc.OutputWindow      = window;
     swapchaindesc.Windowed          = TRUE;
-    swapchaindesc.SwapEffect        = DXGI_SWAP_EFFECT_FLIP_DISCARD;
+    swapchaindesc.SwapEffect        = DXGI_SWAP_EFFECT_DISCARD;
 
     IDXGISwapChain* swapchain;
 
     ID3D11Device* device;
     ID3D11DeviceContext* devicecontext;
 
-    HRESULT hr = D3D11CreateDeviceAndSwapChain(nullptr, D3D_DRIVER_TYPE_HARDWARE, nullptr, D3D11_CREATE_DEVICE_BGRA_SUPPORT, featurelevels, ARRAYSIZE(featurelevels), D3D11_SDK_VERSION, &swapchaindesc, &swapchain, &device, nullptr, &devicecontext); // D3D11_CREATE_DEVICE_DEBUG is optional, but provides useful d3d11 debug output
+    HRESULT hr = D3D11CreateDeviceAndSwapChain(nullptr, D3D_DRIVER_TYPE_HARDWARE, nullptr, D3D11_CREATE_DEVICE_BGRA_SUPPORT, featurelevels, ARRAYSIZE(featurelevels), D3D11_SDK_VERSION, &swapchaindesc, &swapchain, &device, nullptr, &devicecontext);
     if (hr) {
         _com_error err(hr);
         LPCTSTR errMsg = err.ErrorMessage(); // e.g. DXGI_ERROR_INVALID_CALL
@@ -171,19 +171,20 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine
 
     ///////////////////////////////////////////////////////////////////////////////////////////////
 
+    // Modified section for BC1 texture
     D3D11_TEXTURE2D_DESC texturedesc = {};
-    texturedesc.Width              = TEXTURE_WIDTH;  // in xube.h
-    texturedesc.Height             = TEXTURE_HEIGHT; // in xube.h
+    texturedesc.Width              = TEXTURE_WIDTH;  // in xube_with_bc1.h (4)
+    texturedesc.Height             = TEXTURE_HEIGHT; // in xube_with_bc1.h (4)
     texturedesc.MipLevels          = 1;
     texturedesc.ArraySize          = 1;
-    texturedesc.Format             = DXGI_FORMAT_B8G8R8A8_UNORM_SRGB; // same as framebuffer(view)
+    texturedesc.Format             = DXGI_FORMAT_BC1_UNORM_SRGB; // Changed to BC1 format
     texturedesc.SampleDesc.Count   = 1;
     texturedesc.Usage              = D3D11_USAGE_IMMUTABLE; // will never be updated
     texturedesc.BindFlags          = D3D11_BIND_SHADER_RESOURCE;
 
     D3D11_SUBRESOURCE_DATA textureSRD = {};
-    textureSRD.pSysMem     = texturedata; // in xube.h
-    textureSRD.SysMemPitch = TEXTURE_WIDTH * sizeof(UINT); // 1 UINT = 4 bytes per pixel, 0xAARRGGBB
+    textureSRD.pSysMem     = bc1_texture_data; // in xube_with_bc1.h
+    textureSRD.SysMemPitch = 8; // BC1 uses 8 bytes per 4x4 block
 
     ID3D11Texture2D* texture;
 
@@ -200,7 +201,7 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine
     vertexbufferdesc.Usage     = D3D11_USAGE_IMMUTABLE; // will never be updated 
     vertexbufferdesc.BindFlags = D3D11_BIND_VERTEX_BUFFER;
 
-    D3D11_SUBRESOURCE_DATA vertexbufferSRD = { vertexdata }; // in xube.h
+    D3D11_SUBRESOURCE_DATA vertexbufferSRD = { vertexdata }; // in xube_with_bc1.h
 
     ID3D11Buffer* vertexbuffer;
 
@@ -213,7 +214,7 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine
     indexbufferdesc.Usage     = D3D11_USAGE_IMMUTABLE; // will never be updated
     indexbufferdesc.BindFlags = D3D11_BIND_INDEX_BUFFER;
 
-    D3D11_SUBRESOURCE_DATA indexbufferSRD = { indexdata }; // in xube.h
+    D3D11_SUBRESOURCE_DATA indexbufferSRD = { indexdata }; // in xube_with_bc1.h
 
     ID3D11Buffer* indexbuffer;
 
