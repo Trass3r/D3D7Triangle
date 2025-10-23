@@ -22,12 +22,22 @@ matrix operator*(const matrix& m1, const matrix& m2);
 
 int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine, int nShowCmd)
 {
-    WNDCLASSA wndclass = { 0, DefWindowProcA, 0, 0, 0, 0, 0, 0, 0, TITLE };
+    WNDCLASSA wndclass = {};
+    wndclass.style = CS_CLASSDC;
+    wndclass.lpfnWndProc = DefWindowProcA;
+    wndclass.hInstance = hInstance;
+    wndclass.lpszClassName = TITLE;
 
     RegisterClassA(&wndclass);
 
-    HWND window = CreateWindowExA(0, TITLE, TITLE, WS_POPUP | WS_MAXIMIZE | WS_VISIBLE, 0, 0, 0, 0, nullptr, nullptr, nullptr, nullptr);
+    HWND window = CreateWindowExA(0, TITLE, TITLE, WS_OVERLAPPED | WS_VISIBLE,
+                                  CW_USEDEFAULT, CW_USEDEFAULT, 640, 480,
+                                  nullptr, nullptr, hInstance, nullptr);
 
+    if (!window) {
+      printf("ERROR: CreateWindowExA failed\n");
+      return 1;
+    }
     ///////////////////////////////////////////////////////////////////////////////////////////////
 
     D3D_FEATURE_LEVEL featurelevels[] = { D3D_FEATURE_LEVEL_11_0 };
@@ -177,18 +187,24 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine
     texturedesc.Height             = TEXTURE_HEIGHT; // in xube_with_bc1.h (4)
     texturedesc.MipLevels          = 1;
     texturedesc.ArraySize          = 1;
-    texturedesc.Format             = DXGI_FORMAT_BC1_UNORM_SRGB; // Changed to BC1 format
+    texturedesc.Format             = DXGI_FORMAT_BC1_UNORM; // Changed to BC1 format
     texturedesc.SampleDesc.Count   = 1;
     texturedesc.Usage              = D3D11_USAGE_IMMUTABLE; // will never be updated
     texturedesc.BindFlags          = D3D11_BIND_SHADER_RESOURCE;
 
     D3D11_SUBRESOURCE_DATA textureSRD = {};
     textureSRD.pSysMem     = bc1_texture_data; // in xube_with_bc1.h
-    textureSRD.SysMemPitch = 8; // BC1 uses 8 bytes per 4x4 block
+    textureSRD.SysMemPitch = 8 * TEXTURE_WIDTH / 4; // BC1 uses 8 bytes per 4x4 block
 
     ID3D11Texture2D* texture;
 
-    device->CreateTexture2D(&texturedesc, &textureSRD, &texture);
+    HRESULT texResult = device->CreateTexture2D(&texturedesc, &textureSRD, &texture);
+    if (FAILED(texResult)) {
+      _com_error err(texResult);
+      LPCTSTR errMsg = err.ErrorMessage();
+      printf("ERROR: Create BC1 Texture: %s\n", errMsg);
+      exit(1);
+    }
 
     ID3D11ShaderResourceView* textureSRV;
 
@@ -242,13 +258,24 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine
 
     ///////////////////////////////////////////////////////////////////////////////////////////////
 
+    ShowWindow(window, SW_SHOWDEFAULT);
+    UpdateWindow(window);
+
+    bool rotate = true;
     while (true)
     {
         MSG msg;
-
         while (PeekMessageA(&msg, nullptr, 0, 0, PM_REMOVE))
         {
-            if (msg.message == WM_KEYDOWN) return 0; // PRESS ANY KEY TO EXIT
+            if (msg.message == WM_KEYDOWN) {
+                if (msg.wParam == VK_ESCAPE) {
+                    DestroyWindow(window);
+                    return 0;
+                }
+                if (msg.wParam == VK_SPACE)
+                  rotate = !rotate;
+            }
+
             DispatchMessageA(&msg);
         }
 
@@ -260,9 +287,11 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine
         matrix scale     = { modelscale.x, 0, 0, 0, 0, modelscale.y, 0, 0, 0, 0, modelscale.z, 0, 0, 0, 0, 1 };
         matrix translate = { 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, modeltranslation.x, modeltranslation.y, modeltranslation.z, 1 };
 
-        modelrotation.x += 0.005f;
-        modelrotation.y += 0.009f;
-        modelrotation.z += 0.001f;
+        if (rotate) {
+            modelrotation.x += 0.0025f;
+            modelrotation.y += 0.0045f;
+            modelrotation.z += 0.0005f;
+        }
 
         ///////////////////////////////////////////////////////////////////////////////////////////
 
