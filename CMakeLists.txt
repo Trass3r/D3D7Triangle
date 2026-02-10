@@ -4,7 +4,7 @@ cmake_minimum_required(VERSION 3.20)
 include(FetchContent)
 FetchContent_Declare(
     llvm_mingw
-    URL https://github.com/mstorsjo/llvm-mingw/releases/download/20251021/llvm-mingw-20251021-ucrt-ubuntu-22.04-x86_64.tar.xz
+    URL https://github.com/mstorsjo/llvm-mingw/releases/download/20260127/llvm-mingw-20260127-ucrt-ubuntu-22.04-x86_64.tar.xz
     SOURCE_DIR ${CMAKE_SOURCE_DIR}/llvm-mingw
 )
 FetchContent_MakeAvailable(llvm_mingw)
